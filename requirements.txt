@@ -2,6 +2,7 @@
 Flask==3.1.1
 python-dotenv==1.1.0
 gunicorn==23.0.0
+psycopg2-binary==2.9.10
 
 # Database (SQLite handled by default, SQLAlchemy optional for ORM)
 SQLAlchemy==2.0.41

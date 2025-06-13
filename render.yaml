@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sahjanand-mart
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn backend.app:app"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sahjanand_mart
+          property: connectionString
+
+databases:
+  - name: sahjanand_mart

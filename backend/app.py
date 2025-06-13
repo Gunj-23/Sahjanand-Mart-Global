@@ -3,7 +3,7 @@ from db import init_db, get_db, close_db
 from datetime import datetime, timedelta, date
 import os
 from sqlalchemy.exc import SQLAlchemyError
-
+from sqlalchemy import text
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__,

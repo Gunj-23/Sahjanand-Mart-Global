@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, date
 import os
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__,
             template_folder=os.path.join(basedir, '../templates'),
             static_folder=os.path.join(basedir, '../backend/static'))
 
-# Initialize database (Supabase PostgreSQL via SQLAlchemy handled in db.py)
 @app.teardown_appcontext
 def teardown_db(exception):
     close_db()
@@ -25,7 +25,7 @@ def dashboard():
 @app.route('/inventory')
 def inventory():
     db = get_db()
-    products = db.execute('''
+    products = db.execute(text('''
         SELECT *, 
         CASE 
             WHEN expiry_date IS NULL THEN 0
@@ -38,7 +38,7 @@ def inventory():
             ELSE 0
         END as is_expiring_soon
         FROM products
-    ''').fetchall()
+    ''')).fetchall()
 
     product_list = []
     for product in products:
@@ -55,7 +55,7 @@ def inventory():
 @app.route('/billing')
 def billing():
     db = get_db()
-    products = db.execute('SELECT * FROM products WHERE stock > 0').fetchall()
+    products = db.execute(text('SELECT * FROM products WHERE stock > 0')).fetchall()
     return render_template('billing.html', products=products)
 
 @app.route('/api/products', methods=['GET', 'POST'])

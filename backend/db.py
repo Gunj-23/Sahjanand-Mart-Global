@@ -1,4 +1,4 @@
-from flask import g, current_app
+from flask import g
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import os
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Load .env if running locally
 load_dotenv()
 
-# Updated DATABASE_URL from Render (external URL)
+# DATABASE_URL from Render (external Postgres URL)
 DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://sahjanandmart_user:ihI9VpcN6wflSh97D3JAnc7ORzAbZBnN@dpg-d15qgjodl3ps7382ldu0-a.oregon-postgres.render.com/sahjanandmart"
 
 # Setup SQLAlchemy Engine and Session
@@ -27,7 +27,8 @@ def close_db(e=None):
 def init_db(app):
     with app.app_context():
         db = engine.connect()
-        with app.open_resource('backend/schema.sql', mode='r') as f:
+        # Corrected path: schema.sql must be in same folder as app.py (backend/)
+        with app.open_resource('schema.sql', mode='r') as f:
             db.execute(text(f.read()))
         db.close()
 

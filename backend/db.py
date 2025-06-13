@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 # Load .env if running locally
 load_dotenv()
 
-# Load connection string securely
-DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://postgres:GDPatel$2310@db.zvjuzgrqpusezzosmtsz.supabase.co:5432/postgres"
+# Updated DATABASE_URL from Render (external URL)
+DATABASE_URL = os.getenv("DATABASE_URL") or "postgresql://sahjanandmart_user:ihI9VpcN6wflSh97D3JAnc7ORzAbZBnN@dpg-d15qgjodl3ps7382ldu0-a.oregon-postgres.render.com/sahjanandmart"
 
 # Setup SQLAlchemy Engine and Session
 engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)

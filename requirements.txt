@@ -1,24 +1,2 @@
-﻿# Core backend
-Flask==3.1.1
-python-dotenv==1.1.0
-gunicorn==23.0.0
-psycopg2-binary==2.9.10
-
-# Database (SQLite handled by default, SQLAlchemy optional for ORM)
-SQLAlchemy==2.0.41
-
-# PDF generation
-fpdf==1.7.2
-
-# Desktop GUI
-customtkinter==5.2.2
-darkdetect==0.8.0
-Pillow==11.2.1
-
-# Packaging as EXE
-pyinstaller==6.14.1
-pyinstaller-hooks-contrib==2025.5
-
-
-# Others
-requests==2.32.3
+Flask==2.3.2
+pywin32==305

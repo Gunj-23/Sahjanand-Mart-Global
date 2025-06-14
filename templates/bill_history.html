@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% block title %}Bill History - Sahjanand Mart{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-3xl font-bold mb-6 text-gray-800">Bill History</h1>
+
+  <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+      <div class="relative mb-4 md:mb-0 md:w-1/3">
+        <input type="text" id="billSearch" placeholder="Search by Bill ID..." 
+               class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+      </div>
+      <div class="flex space-x-2">
+        <select id="dateFilter" class="border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <option value="all">All Dates</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-gray-300">
+            <th class="text-left py-2 font-medium text-gray-700">Bill ID</th>
+            <th class="text-left py-2 font-medium text-gray-700">Date & Time</th>
+            <th class="text-right py-2 font-medium text-gray-700">Subtotal</th>
+            <th class="text-right py-2 font-medium text-gray-700">Tax</th>
+            <th class="text-right py-2 font-medium text-gray-700">Total</th>
+            <th class="text-center py-2 font-medium text-gray-700">Payment</th>
+            <th class="text-center py-2 font-medium text-gray-700">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="billTableBody" class="divide-y divide-gray-200">
+          <!-- Bills will be loaded here -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 flex justify-between items-center">
+      <div class="text-sm text-gray-600" id="billCount">Showing 0 bills</div>
+      <div class="flex space-x-2">
+        <button id="prevPage" class="px-3 py-1 border rounded-md disabled:opacity-50">Previous</button>
+        <span id="pageInfo" class="px-3 py-1">Page 1</span>
+        <button id="nextPage" class="px-3 py-1 border rounded-md disabled:opacity-50">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bill Details Modal -->
+  <div id="billModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-gray-800">Bill Details - <span id="modalBillId"></span></h3>
+          <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mb-4">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-gray-600">Date: <span id="modalBillDate"></span></p>
+            <p class="text-gray-600">Payment Mode: <span id="modalPaymentMode"></span></p>
+          </div>
+          <div id="editReasonContainer" class="mb-4 hidden">
+            <label for="editReason" class="block text-sm font-medium text-gray-700 mb-1">Reason for Editing:</label>
+            <input type="text" id="editReason" class="w-full p-2 border border-gray-300 rounded-md">
+          </div>
+        </div>
+
+        <div class="mb-4 overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-300">
+                <th class="text-left py-2 font-medium text-gray-700">Item</th>
+                <th class="text-center py-2 font-medium text-gray-700">Qty</th>
+                <th class="text-right py-2 font-medium text-gray-700">Price</th>
+                <th class="text-right py-2 font-medium text-gray-700">Total</th>
+                <th class="text-center py-2 font-medium text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="modalBillItems" class="divide-y divide-gray-200">
+              <!-- Bill items will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="border-t pt-4">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold text-gray-700">Subtotal:</h3>
+            <p class="text-lg" id="modalSubtotal">₹0.00</p>
+          </div>
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-semibold text-gray-700">Tax (5%):</h3>
+            <p class="text-lg" id="modalTax">₹0.00</p>
+          </div>
+          <div class="flex justify-between items-center border-t pt-2">
+            <h3 class="text-xl font-bold text-gray-800">Total Amount:</h3>
+            <p class="text-xl font-bold" id="modalTotal">₹0.00</p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+          <button id="printBillBtn" class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">
+            Print Bill
+          </button>
+          <button id="editBillBtn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+            Edit Bill
+          </button>
+          <button id="saveBillBtn" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors hidden">
+            Save Changes
+          </button>
+          <button id="cancelEditBtn" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors hidden">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // DOM Elements
+  const billSearch = document.getElementById('billSearch');
+  const dateFilter = document.getElementById('dateFilter');
+  const billTableBody = document.getElementById('billTableBody');
+  const billCount = document.getElementById('billCount');
+  const prevPageBtn = document.getElementById('prevPage');
+  const nextPageBtn = document.getElementById('nextPage');
+  const pageInfo = document.getElementById('pageInfo');
+  const billModal = document.getElementById('billModal');
+  const closeModal = document.getElementById('closeModal');
+  const modalBillId = document.getElementById('modalBillId');
+  const modalBillDate = document.getElementById('modalBillDate');
+  const modalPaymentMode = document.getElementById('modalPaymentMode');
+  const modalBillItems = document.getElementById('modalBillItems');
+  const modalSubtotal = document.getElementById('modalSubtotal');
+  const modalTax = document.getElementById('modalTax');
+  const modalTotal = document.getElementById('modalTotal');
+  const printBillBtn = document.getElementById('printBillBtn');
+  const editBillBtn = document.getElementById('editBillBtn');
+  const saveBillBtn = document.getElementById('saveBillBtn');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const editReasonContainer = document.getElementById('editReasonContainer');
+  const editReason = document.getElementById('editReason');
+
+  // State variables
+  let currentPage = 1;
+  let totalPages = 1;
+  let currentBillId = null;
+  let originalBillItems = [];
+  let isEditing = false;
+
+  // Initialize
+  function init() {
+    loadBills();
+    setupEventListeners();
+  }
+
+  // Setup event listeners
+  function setupEventListeners() {
+    billSearch.addEventListener('input', debounce(() => {
+      currentPage = 1;
+      loadBills();
+    }, 300));
+
+    dateFilter.addEventListener('change', () => {
+      currentPage = 1;
+      loadBills();
+    });
+
+    prevPageBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadBills();
+      }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        loadBills();
+      }
+    });
+
+    closeModal.addEventListener('click', closeBillModal);
+    printBillBtn.addEventListener('click', printCurrentBill);
+    editBillBtn.addEventListener('click', startEditing);
+    saveBillBtn.addEventListener('click', saveBillChanges);
+    cancelEditBtn.addEventListener('click', cancelEditing);
+  }
+
+  // Load bills from server
+  function loadBills() {
+    const searchTerm = billSearch.value.trim();
+    const filterValue = dateFilter.value;
+
+    let url = `/api/bills?page=${currentPage}`;
+    if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+    if (filterValue !== 'all') url += `&filter=${filterValue}`;
+
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        renderBills(data.bills);
+        totalPages = data.total_pages;
+        updatePagination();
+        billCount.textContent = `Showing ${data.total_count} bills`;
+      })
+      .catch(error => {
+        console.error('Error loading bills:', error);
+        billTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Error loading bills</td></tr>';
+      });
+  }
+
+  // Render bills in the table
+  function renderBills(bills) {
+    if (bills.length === 0) {
+      billTableBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">No bills found</td></tr>';
+      return;
+    }
+
+    billTableBody.innerHTML = '';
+    bills.forEach(bill => {
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-50';
+      row.innerHTML = `
+        <td class="py-2">${bill.id}</td>
+        <td class="py-2">${new Date(bill.date).toLocaleString()}</td>
+        <td class="py-2 text-right">₹${bill.subtotal.toFixed(2)}</td>
+        <td class="py-2 text-right">₹${bill.tax.toFixed(2)}</td>
+        <td class="py-2 text-right">₹${bill.total_amount.toFixed(2)}</td>
+        <td class="py-2 text-center">${bill.payment_mode.toUpperCase()}</td>
+        <td class="py-2 text-center">
+          <button class="view-bill text-blue-600 hover:text-blue-800" data-id="${bill.id}">View</button>
+        </td>
+      `;
+      billTableBody.appendChild(row);
+    });
+
+    // Add event listeners to view buttons
+    document.querySelectorAll('.view-bill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        currentBillId = e.target.getAttribute('data-id');
+        viewBillDetails(currentBillId);
+      });
+    });
+  }
+
+  // Update pagination controls
+  function updatePagination() {
+    pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    prevPageBtn.disabled = currentPage === 1;
+    nextPageBtn.disabled = currentPage === totalPages;
+  }
+
+  // View bill details
+  function viewBillDetails(billId) {
+    fetch(`/api/bills/${billId}`)
+      .then(response => response.json())
+      .then(bill => {
+        modalBillId.textContent = bill.id;
+        modalBillDate.textContent = new Date(bill.date).toLocaleString();
+        modalPaymentMode.textContent = bill.payment_mode.toUpperCase();
+        modalSubtotal.textContent = `₹${bill.subtotal.toFixed(2)}`;
+        modalTax.textContent = `₹${bill.tax.toFixed(2)}`;
+        modalTotal.textContent = `₹${bill.total_amount.toFixed(2)}`;
+
+        // Save original items for editing
+        originalBillItems = bill.items;
+
+        renderBillItems(bill.items);
+        billModal.classList.remove('hidden');
+      })
+      .catch(error => {
+        console.error('Error loading bill details:', error);
+        alert('Error loading bill details');
+      });
+  }
+
+  // Render bill items in modal
+  function renderBillItems(items, editable = false) {
+    modalBillItems.innerHTML = '';
+    let subtotal = 0;
+
+    items.forEach((item, index) => {
+      const total = item.price * item.quantity;
+      subtotal += total;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="py-2">${item.name}</td>
+        <td class="text-center py-2">
+          ${editable ? 
+            `<input type="number" min="1" value="${item.quantity}" class="w-16 p-1 border rounded item-quantity" data-id="${item.product_id}" data-index="${index}">` : 
+            item.quantity}
+        </td>
+        <td class="text-right py-2">₹${item.price.toFixed(2)}</td>
+        <td class="text-right py-2">₹${total.toFixed(2)}</td>
+        <td class="text-center py-2">
+          ${editable ? 
+            `<button class="remove-item text-red-600 hover:text-red-800" data-id="${item.product_id}" data-index="${index}">Remove</button>` : 
+            ''}
+        </td>
+      `;
+      modalBillItems.appendChild(tr);
+    });
+
+    if (editable) {
+      // Add event listeners to quantity inputs
+      document.querySelectorAll('.item-quantity').forEach(input => {
+        input.addEventListener('change', updateItemQuantity);
+      });
+
+      // Add event listeners to remove buttons
+      document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', removeItem);
+      });
+    }
+
+    // Update totals
+    const tax = subtotal * 0.05;
+    const total = subtotal + tax;
+    modalSubtotal.textContent = `₹${subtotal.toFixed(2)}`;
+    modalTax.textContent = `₹${tax.toFixed(2)}`;
+    modalTotal.textContent = `₹${total.toFixed(2)}`;
+  }
+
+  // Close bill modal
+  function closeBillModal() {
+    billModal.classList.add('hidden');
+    isEditing = false;
+    resetEditMode();
+  }
+
+  // Print current bill
+  function printCurrentBill() {
+    // You can implement printing logic here
+    alert('Printing bill ' + currentBillId);
+  }
+
+  // Start editing bill
+  function startEditing() {
+    isEditing = true;
+    editBillBtn.classList.add('hidden');
+    saveBillBtn.classList.remove('hidden');
+    cancelEditBtn.classList.remove('hidden');
+    editReasonContainer.classList.remove('hidden');
+    renderBillItems(originalBillItems, true);
+  }
+
+  // Cancel editing
+  function cancelEditing() {
+    isEditing = false;
+    resetEditMode();
+    renderBillItems(originalBillItems);
+  }
+
+  // Reset edit mode
+  function resetEditMode() {
+    editBillBtn.classList.remove('hidden');
+    saveBillBtn.classList.add('hidden');
+    cancelEditBtn.classList.add('hidden');
+    editReasonContainer.classList.add('hidden');
+    editReason.value = '';
+  }
+
+  // Update item quantity
+  function updateItemQuantity(e) {
+    const index = e.target.getAttribute('data-index');
+    const newQuantity = parseInt(e.target.value);
+    
+    if (newQuantity < 1) {
+      e.target.value = 1;
+      originalBillItems[index].quantity = 1;
+    } else {
+      originalBillItems[index].quantity = newQuantity;
+    }
+    
+    renderBillItems(originalBillItems, true);
+  }
+
+  // Remove item
+  function removeItem(e) {
+    const index = e.target.getAttribute('data-index');
+    originalBillItems.splice(index, 1);
+    renderBillItems(originalBillItems, true);
+  }
+
+  // Save bill changes
+  function saveBillChanges() {
+    const reason = editReason.value.trim();
+    if (!reason) {
+      alert('Please enter a reason for editing this bill');
+      return;
+    }
+
+    const subtotal = parseFloat(modalSubtotal.textContent.replace('₹', ''));
+    const tax = parseFloat(modalTax.textContent.replace('₹', ''));
+    const total = parseFloat(modalTotal.textContent.replace('₹', ''));
+
+    const payload = {
+      items: originalBillItems.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      subtotal: subtotal,
+      tax: tax,
+      total_amount: total,
+      edit_reason: reason
+    };
+
+    fetch(`/api/bills/${currentBillId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Bill updated successfully!');
+        closeBillModal();
+        loadBills(); // Refresh the bill list
+      } else {
+        throw new Error(data.error || 'Failed to update bill');
+      }
+    })
+    .catch(error => {
+      console.error('Error updating bill:', error);
+      alert('Error updating bill: ' + error.message);
+    });
+  }
+
+  // Debounce function for search input
+  function debounce(func, wait) {
+    let timeout;
+    return function() {
+      const context = this, args = arguments;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+  }
+
+  // Initialize the page
+  init();
+});
+</script>
+
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    .bill-modal-content, .bill-modal-content * { visibility: visible; }
+    .bill-modal-content { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print { display: none !important; }
+    @page { size: auto; margin: 0mm; }
+  }
+</style>
+{% endblock %}

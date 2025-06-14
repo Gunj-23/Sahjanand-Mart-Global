@@ -5,7 +5,7 @@ import time
 import webbrowser
 from threading import Thread
 
-PROJECT_ROOT = r"D:\sahjanand_mart-Copy"
+PROJECT_ROOT = r"D:\sahjanand_mart"
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """

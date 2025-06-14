@@ -1,36 +1,45 @@
 -- Create products table with all columns including expiry_date
 CREATE TABLE IF NOT EXISTS products (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    price NUMERIC NOT NULL,
+    price REAL NOT NULL,
     stock INTEGER NOT NULL DEFAULT 0,
     barcode TEXT UNIQUE,
     category TEXT,
-    expiry_date DATE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    expiry_date TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create sales table with all required columns
 CREATE TABLE IF NOT EXISTS sales (
-    id SERIAL PRIMARY KEY,
-    subtotal NUMERIC NOT NULL,
-    tax NUMERIC NOT NULL,
-    total_amount NUMERIC NOT NULL,
-    date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subtotal REAL NOT NULL,
+    tax REAL NOT NULL,
+    total_amount REAL NOT NULL,
+    date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     payment_mode TEXT NOT NULL DEFAULT 'cash'
 );
 
 -- Create sale_items table
 CREATE TABLE IF NOT EXISTS sale_items (
-    id SERIAL PRIMARY KEY,
-    sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
-    price NUMERIC NOT NULL
+    price REAL NOT NULL,
+    FOREIGN KEY (sale_id) REFERENCES sales (id),
+    FOREIGN KEY (product_id) REFERENCES products (id)
 );
-
+-- Add this to your schema.sql
+CREATE TABLE IF NOT EXISTS bill_edits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_id INTEGER NOT NULL,
+    edit_reason TEXT NOT NULL,
+    edited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sale_id) REFERENCES sales (id)
+);
 -- Sample data for products
-INSERT INTO products (name, price, stock, barcode, category, expiry_date) VALUES
+INSERT OR IGNORE INTO products (name, price, stock, barcode, category, expiry_date) VALUES
 ('Rice (1kg)', 45.00, 100, '8901234567890', 'Grocery', '2024-12-31'),
 ('Wheat Flour (1kg)', 30.00, 80, '8901234567891', 'Grocery', '2024-10-31'),
 ('Sugar (1kg)', 42.00, 60, '8901234567892', 'Grocery', '2025-06-30'),
@@ -38,5 +47,4 @@ INSERT INTO products (name, price, stock, barcode, category, expiry_date) VALUES
 ('Soap', 25.00, 120, '8901234567894', 'Personal Care', '2024-09-30'),
 ('Shampoo', 180.00, 40, '8901234567895', 'Personal Care', '2025-01-31'),
 ('Biscuits', 10.00, 200, '8901234567896', 'Snacks', '2024-08-31'),
-('Chips', 20.00, 150, '8901234567897', 'Snacks', '2024-07-31')
-ON CONFLICT (barcode) DO NOTHING;
+('Chips', 20.00, 150, '8901234567897', 'Snacks', '2024-07-31');

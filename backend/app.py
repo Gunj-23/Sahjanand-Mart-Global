@@ -236,14 +236,29 @@ def get_bills():
     search = request.args.get('search', '')
     date_filter = request.args.get('filter', 'all')
 
-    query = "SELECT * FROM sales"
-    count_query = "SELECT COUNT(*) FROM sales"
+    # Base query with edit count
+    query = '''
+        SELECT s.*, 
+        (SELECT COUNT(*) FROM bill_edits WHERE sale_id = s.id) as edit_count
+        FROM sales s
+    '''
+    count_query = "SELECT COUNT(*) FROM sales s"
     conditions = []
     params = []
 
     if search:
-        conditions.append("id = ?")
-        params.append(search)
+        try:
+            # Try to convert search term to integer for ID search
+            bill_id = int(search)
+            conditions.append("s.id = ?")
+            params.append(bill_id)
+        except ValueError:
+            # If not a number, search won't match any bills
+            return jsonify({
+                'bills': [],
+                'total_pages': 0,
+                'total_count': 0
+            })
 
     if date_filter != 'all':
         now = datetime.now()
@@ -255,22 +270,34 @@ def get_bills():
         elif date_filter == 'month':
             start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        conditions.append("date >= ?")
-        params.append(start_date.isoformat())
+        conditions.append("s.date >= ?")
+        params.append(start_date.strftime('%Y-%m-%d %H:%M:%S'))
 
     if conditions:
-        query += " WHERE " + " AND ".join(conditions)
-        count_query += " WHERE " + " AND ".join(conditions)
+        where_clause = " WHERE " + " AND ".join(conditions)
+        query += where_clause
+        count_query += where_clause
 
     total_count = db.execute(count_query, params).fetchone()[0]
 
-    query += " ORDER BY date DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY s.date DESC LIMIT ? OFFSET ?"
     params.extend([per_page, (page - 1) * per_page])
 
     bills = db.execute(query, params).fetchall()
 
+    # Format dates for display
+    formatted_bills = []
+    for bill in bills:
+        bill_dict = dict(bill)
+        try:
+            bill_date = datetime.strptime(bill_dict['date'], '%Y-%m-%d %H:%M:%S')
+            bill_dict['date'] = bill_date.strftime('%b %d, %Y %I:%M %p')
+        except (ValueError, TypeError):
+            bill_dict['date'] = bill_dict['date']
+        formatted_bills.append(bill_dict)
+
     return jsonify({
-        'bills': [dict(bill) for bill in bills],
+        'bills': formatted_bills,
         'total_pages': (total_count + per_page - 1) // per_page,
         'total_count': total_count
     })
@@ -278,10 +305,13 @@ def get_bills():
 @app.route('/api/bills/<int:bill_id>', methods=['GET'])
 def get_bill_details(bill_id):
     db = get_db()
+    
+    # Get sale information
     sale = db.execute('SELECT * FROM sales WHERE id = ?', [bill_id]).fetchone()
     if not sale:
         return jsonify({'error': 'Bill not found'}), 404
 
+    # Get sale items
     items = db.execute('''
         SELECT si.*, p.name 
         FROM sale_items si
@@ -289,14 +319,39 @@ def get_bill_details(bill_id):
         WHERE si.sale_id = ?
     ''', [bill_id]).fetchall()
 
+    # Get edit history
+    edits = db.execute('''
+        SELECT * FROM bill_edits
+        WHERE sale_id = ?
+        ORDER BY edited_at DESC
+    ''', [bill_id]).fetchall()
+
+    # Format dates
+    try:
+        sale_date = datetime.strptime(sale['date'], '%Y-%m-%d %H:%M:%S')
+        formatted_date = sale_date.strftime('%b %d, %Y %I:%M %p')
+    except (ValueError, TypeError):
+        formatted_date = sale['date']
+
+    formatted_edits = []
+    for edit in edits:
+        edit_dict = dict(edit)
+        try:
+            edit_date = datetime.strptime(edit_dict['edited_at'], '%Y-%m-%d %H:%M:%S')
+            edit_dict['edited_at'] = edit_date.strftime('%b %d, %Y %I:%M %p')
+        except (ValueError, TypeError):
+            edit_dict['edited_at'] = edit_dict['edited_at']
+        formatted_edits.append(edit_dict)
+
     return jsonify({
         'id': sale['id'],
-        'date': sale['date'],
+        'date': formatted_date,
         'subtotal': sale['subtotal'],
         'tax': sale['tax'],
         'total_amount': sale['total_amount'],
         'payment_mode': sale['payment_mode'],
-        'items': [dict(item) for item in items]
+        'items': [dict(item) for item in items],
+        'edits': formatted_edits
     })
 
 @app.route('/api/bills/<int:bill_id>', methods=['PUT'])
@@ -311,30 +366,36 @@ def update_bill(bill_id):
     try:
         db.execute("BEGIN TRANSACTION")
 
+        # Get original items for stock reconciliation
         original_items = db.execute('''
             SELECT product_id, quantity FROM sale_items 
             WHERE sale_id = ?
         ''', [bill_id]).fetchall()
         original_items_dict = {item['product_id']: item['quantity'] for item in original_items}
 
+        # Calculate new totals
         subtotal = sum(item['price'] * item['quantity'] for item in data['items'])
         tax = subtotal * 0.05
         total = subtotal + tax
 
+        # Update sale record
         db.execute('''
             UPDATE sales 
             SET subtotal = ?, tax = ?, total_amount = ?
             WHERE id = ?
         ''', [subtotal, tax, total, bill_id])
 
+        # Delete existing sale items
         db.execute('DELETE FROM sale_items WHERE sale_id = ?', [bill_id])
 
+        # Insert new sale items and update stock
         for item in data['items']:
             db.execute('''
                 INSERT INTO sale_items (sale_id, product_id, quantity, price)
                 VALUES (?, ?, ?, ?)
             ''', [bill_id, item['product_id'], item['quantity'], item['price']])
 
+            # Calculate stock difference and update products
             original_qty = original_items_dict.get(item['product_id'], 0)
             stock_diff = original_qty - item['quantity']
 
@@ -345,10 +406,11 @@ def update_bill(bill_id):
                     WHERE id = ?
                 ''', [stock_diff, item['product_id']])
 
+        # Record the edit
         db.execute('''
             INSERT INTO bill_edits (sale_id, edit_reason, edited_at)
             VALUES (?, ?, ?)
-        ''', [bill_id, data['edit_reason'], datetime.now().isoformat()])
+        ''', [bill_id, data['edit_reason'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
 
         db.commit()
         return jsonify({'success': True})

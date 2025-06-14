@@ -1,3 +1,4 @@
+-- schema.sql
 -- Create products table with all columns including expiry_date
 CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +31,8 @@ CREATE TABLE IF NOT EXISTS sale_items (
     FOREIGN KEY (sale_id) REFERENCES sales (id),
     FOREIGN KEY (product_id) REFERENCES products (id)
 );
--- Add this to your schema.sql
+
+-- Create bill_edits table
 CREATE TABLE IF NOT EXISTS bill_edits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sale_id INTEGER NOT NULL,
@@ -38,6 +40,7 @@ CREATE TABLE IF NOT EXISTS bill_edits (
     edited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sale_id) REFERENCES sales (id)
 );
+
 -- Sample data for products
 INSERT OR IGNORE INTO products (name, price, stock, barcode, category, expiry_date) VALUES
 ('Rice (1kg)', 45.00, 100, '8901234567890', 'Grocery', '2024-12-31'),
@@ -48,3 +51,23 @@ INSERT OR IGNORE INTO products (name, price, stock, barcode, category, expiry_da
 ('Shampoo', 180.00, 40, '8901234567895', 'Personal Care', '2025-01-31'),
 ('Biscuits', 10.00, 200, '8901234567896', 'Snacks', '2024-08-31'),
 ('Chips', 20.00, 150, '8901234567897', 'Snacks', '2024-07-31');
+
+-- Sample sales data
+INSERT OR IGNORE INTO sales (subtotal, tax, total_amount, date, payment_mode) VALUES
+(150.00, 7.50, 157.50, '2023-11-15 10:30:00', 'cash'),
+(225.00, 11.25, 236.25, '2023-11-16 11:45:00', 'card'),
+(80.00, 4.00, 84.00, '2023-11-17 14:20:00', 'upi'),
+(320.00, 16.00, 336.00, '2023-11-18 16:10:00', 'cash');
+
+-- Sample sale items
+INSERT OR IGNORE INTO sale_items (sale_id, product_id, quantity, price) VALUES
+(1, 1, 2, 45.00),
+(1, 3, 1, 42.00),
+(1, 5, 2, 25.00),
+(2, 2, 3, 30.00),
+(2, 4, 2, 75.00),
+(3, 6, 1, 180.00),
+(3, 7, 3, 10.00),
+(4, 8, 4, 20.00),
+(4, 1, 1, 45.00),
+(4, 3, 2, 42.00);

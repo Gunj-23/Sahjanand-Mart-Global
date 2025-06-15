@@ -46,9 +46,10 @@
             Jol‑388315, Anand, Gujarat</p>
           <p class="text-sm text-gray-600">GSTIN: 22ABCDE1234F1Z5</p>
           <p id="receiptDate" class="text-sm text-gray-600 mt-1"></p>
+          <p id="billId" class="text-sm font-medium text-gray-700 hidden">Bill ID: <span id="billIdValue"></span></p>
         </div>
 
-        <hr class="border-gray-300 my-2">
+        <hr class="border-gray-300 my-2 print-section-divider">
 
         <div class="mb-4 overflow-x-auto">
           <table class="w-full">
@@ -61,9 +62,12 @@
                 <th class="w-8 no-print"></th>
               </tr>
             </thead>
+            
             <tbody id="cartItems" class="divide-y divide-gray-200"></tbody>
           </table>
         </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
 
         <div class="flex justify-between items-center mb-1">
           <h3 class="text-md font-semibold text-gray-700">Subtotal:</h3>
@@ -75,16 +79,22 @@
           <p class="text-md" id="taxAmount">₹0.00</p>
         </div>
 
+        <hr class="border-gray-300 my-2 print-section-divider">
+
         <div class="flex justify-between items-center border-t pt-2">
           <h3 class="text-lg font-bold text-gray-800">Total Amount:</h3>
           <p class="text-lg font-bold" id="totalAmount">₹0.00</p>
         </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
 
         <div class="mt-4 text-sm text-gray-600">
           <p><span class="font-medium">Payment Mode:</span>
             <span id="printPaymentMode">Cash</span>
           </p>
         </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
 
         
         <!-- Action Buttons -->
@@ -135,9 +145,12 @@
     const receiptDate = document.getElementById('receiptDate');
     const cartItems = document.getElementById('cartItems');
     const printPaymentMode = document.getElementById('printPaymentMode');
+    const billIdElement = document.getElementById('billId');
+    const billIdValueElement = document.getElementById('billIdValue');
 
     // Cart state
     let cart = [];
+    let currentSaleId = null;
 
     // Initialize
     function init() {
@@ -325,6 +338,8 @@
     // Clear cart
     function clearCart() {
       cart = [];
+      currentSaleId = null;
+      billIdElement.classList.add('hidden');
       renderCart();
       barcodeInput.focus();
     }
@@ -396,8 +411,11 @@
       })
       .then(data => {
         if (data.success) {
+          currentSaleId = data.sale_id;
+          billIdValueElement.textContent = currentSaleId;
+          billIdElement.classList.remove('hidden');
           alert(`Sale recorded successfully! Invoice ID: ${data.sale_id}`);
-          clearCart();
+          printBill(); // Automatically print after successful checkout
         } else {
           throw new Error(data.error || 'Unknown error');
         }
@@ -414,6 +432,12 @@
         alert('Cart is empty!');
         return;
       }
+      
+      // Show the bill ID element if we have one
+      if (currentSaleId) {
+        billIdElement.classList.remove('hidden');
+      }
+      
       window.print();
     }
 
@@ -485,10 +509,10 @@
       size: auto; 
       margin: 0;
     }
-    hr {
+    .print-section-divider {
       border: none;
-      border-top: 1px dashed #ccc;
-      margin: 5px 0;
+      border-top: 1px dashed #000;
+      margin: 8px 0;
     }
     #receiptDate {
       margin-bottom: 10px;
@@ -515,6 +539,11 @@
       height: auto !important;
       margin: 0 !important;
       padding: 0 !important;
+    }
+    #billId {
+      display: block !important;
+      text-align: center;
+      margin-bottom: 5px;
     }
   }
 </style>

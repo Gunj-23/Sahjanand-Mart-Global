@@ -6,9 +6,14 @@
 <div class="container mx-auto px-4 py-6">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">Inventory Management</h1>
-        <button id="addProductBtn" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-            Add Product
-        </button>
+        <div>
+            <button id="addLotBtn" class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 mr-2">
+                Add Lot
+            </button>
+            <button id="addProductBtn" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                Add Product
+            </button>
+        </div>
     </div>
 
     <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow">
@@ -82,6 +87,44 @@
         </div>
     </div>
 
+    <!-- Add Lot Modal -->
+    <div id="lotModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Add New Lot</h2>
+                <button id="closeLotModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="lotForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="lotProductName">Product*</label>
+                    <select id="lotProductName" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="">Select Product</option>
+                        {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }} (Current: {{ product.stock }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="lotQuantity">Quantity*</label>
+                    <input type="number" id="lotQuantity" min="1" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="lotExpiry">Expiry Date</label>
+                    <input type="date" id="lotExpiry" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelLotBtn" class="px-4 py-2 border rounded hover:bg-gray-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Add Lot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
     <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div class="flex justify-between items-center mb-4">
@@ -145,6 +188,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const sortBy = document.getElementById('sortBy');
     const productTableBody = document.getElementById('productTableBody');
     
+    // Add Lot elements
+    const lotModal = document.getElementById('lotModal');
+    const addLotBtn = document.getElementById('addLotBtn');
+    const closeLotModalBtn = document.getElementById('closeLotModalBtn');
+    const cancelLotBtn = document.getElementById('cancelLotBtn');
+    const lotForm = document.getElementById('lotForm');
+
     // Show modal for adding new product
     function showAddModal() {
         document.getElementById('modalTitle').textContent = 'Add Product';
@@ -185,8 +235,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         modal.classList.remove('hidden');
     }
+
+    // Show lot modal
+    addLotBtn.addEventListener('click', () => {
+        lotModal.classList.remove('hidden');
+    });
+
+    // Close lot modal
+    closeLotModalBtn.addEventListener('click', () => lotModal.classList.add('hidden'));
+    cancelLotBtn.addEventListener('click', () => lotModal.classList.add('hidden'));
+    lotModal.addEventListener('click', (e) => e.target === lotModal && lotModal.classList.add('hidden'));
     
-    // Event listeners for modal buttons
+    // Event listeners for product modal buttons
     addBtn.addEventListener('click', showAddModal);
     closeModalBtn.addEventListener('click', () => modal.classList.add('hidden'));
     cancelBtn.addEventListener('click', () => modal.classList.add('hidden'));
@@ -220,7 +280,56 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Handle form submission with improved error handling
+    // Handle lot form submission
+    lotForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = lotForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="flex items-center justify-center"><svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processing...</span>';
+        
+        const productId = document.getElementById('lotProductName').value;
+        const quantity = parseInt(document.getElementById('lotQuantity').value);
+        const expiryDate = document.getElementById('lotExpiry').value || null;
+        
+        fetch('/api/products/add-lot', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                quantity: quantity,
+                expiry_date: expiryDate
+            })
+        })
+        .then(async (response) => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(text || 'Invalid response from server');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                throw new Error(data.error || 'Error adding lot');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error adding lot: ' + error.message);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Lot';
+        });
+    });
+
+    // Handle product form submission with improved error handling
     productForm.addEventListener('submit', function(e) {
         e.preventDefault();
         

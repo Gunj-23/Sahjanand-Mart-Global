@@ -236,24 +236,18 @@ def get_bills():
     search = request.args.get('search', '')
     date_filter = request.args.get('filter', 'all')
 
-    # Base query with edit count
-    query = '''
-        SELECT s.*, 
-        (SELECT COUNT(*) FROM bill_edits WHERE sale_id = s.id) as edit_count
-        FROM sales s
-    '''
-    count_query = "SELECT COUNT(*) FROM sales s"
+    # Base query
+    query = 'SELECT * FROM sales'
+    count_query = 'SELECT COUNT(*) FROM sales'
     conditions = []
     params = []
 
     if search:
         try:
-            # Try to convert search term to integer for ID search
             bill_id = int(search)
-            conditions.append("s.id = ?")
+            conditions.append("id = ?")
             params.append(bill_id)
         except ValueError:
-            # If not a number, search won't match any bills
             return jsonify({
                 'bills': [],
                 'total_pages': 0,
@@ -270,7 +264,7 @@ def get_bills():
         elif date_filter == 'month':
             start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        conditions.append("s.date >= ?")
+        conditions.append("date >= ?")
         params.append(start_date.strftime('%Y-%m-%d %H:%M:%S'))
 
     if conditions:
@@ -278,26 +272,28 @@ def get_bills():
         query += where_clause
         count_query += where_clause
 
+    # Get total count
     total_count = db.execute(count_query, params).fetchone()[0]
 
-    query += " ORDER BY s.date DESC LIMIT ? OFFSET ?"
+    # Get paginated results
+    query += " ORDER BY date DESC LIMIT ? OFFSET ?"
     params.extend([per_page, (page - 1) * per_page])
-
+    
     bills = db.execute(query, params).fetchall()
 
-    # Format dates for display
-    formatted_bills = []
+    # Convert to list of dicts
+    bills_list = []
     for bill in bills:
         bill_dict = dict(bill)
         try:
             bill_date = datetime.strptime(bill_dict['date'], '%Y-%m-%d %H:%M:%S')
-            bill_dict['date'] = bill_date.strftime('%b %d, %Y %I:%M %p')
+            bill_dict['date'] = bill_date.strftime('%Y-%m-%d %H:%M:%S')
         except (ValueError, TypeError):
-            bill_dict['date'] = bill_dict['date']
-        formatted_bills.append(bill_dict)
+            pass
+        bills_list.append(bill_dict)
 
     return jsonify({
-        'bills': formatted_bills,
+        'bills': bills_list,
         'total_pages': (total_count + per_page - 1) // per_page,
         'total_count': total_count
     })
@@ -311,7 +307,7 @@ def get_bill_details(bill_id):
     if not sale:
         return jsonify({'error': 'Bill not found'}), 404
 
-    # Get sale items
+    # Get sale items with product names
     items = db.execute('''
         SELECT si.*, p.name 
         FROM sale_items si
@@ -326,33 +322,19 @@ def get_bill_details(bill_id):
         ORDER BY edited_at DESC
     ''', [bill_id]).fetchall()
 
-    # Format dates
-    try:
-        sale_date = datetime.strptime(sale['date'], '%Y-%m-%d %H:%M:%S')
-        formatted_date = sale_date.strftime('%b %d, %Y %I:%M %p')
-    except (ValueError, TypeError):
-        formatted_date = sale['date']
-
-    formatted_edits = []
-    for edit in edits:
-        edit_dict = dict(edit)
-        try:
-            edit_date = datetime.strptime(edit_dict['edited_at'], '%Y-%m-%d %H:%M:%S')
-            edit_dict['edited_at'] = edit_date.strftime('%b %d, %Y %I:%M %p')
-        except (ValueError, TypeError):
-            edit_dict['edited_at'] = edit_dict['edited_at']
-        formatted_edits.append(edit_dict)
-
-    return jsonify({
+    # Format response
+    response = {
         'id': sale['id'],
-        'date': formatted_date,
+        'date': sale['date'],
         'subtotal': sale['subtotal'],
         'tax': sale['tax'],
         'total_amount': sale['total_amount'],
         'payment_mode': sale['payment_mode'],
         'items': [dict(item) for item in items],
-        'edits': formatted_edits
-    })
+        'edits': [dict(edit) for edit in edits]
+    }
+
+    return jsonify(response)
 
 @app.route('/api/bills/<int:bill_id>', methods=['PUT'])
 def update_bill(bill_id):
@@ -533,6 +515,66 @@ def low_stock_products():
         ORDER BY stock ASC
     ''').fetchall()
     return jsonify([dict(product) for product in products])
+
+@app.route('/api/products/expiring-soon')
+def expiring_soon_products():
+    db = get_db()
+    products = db.execute('''
+        SELECT * FROM products 
+        WHERE expiry_date IS NOT NULL 
+        AND expiry_date BETWEEN date('now') AND date('now', '+30 days')
+        ORDER BY expiry_date ASC
+    ''').fetchall()
+    return jsonify([dict(product) for product in products])
+
+@app.route('/api/products/expired')
+def expired_products():
+    db = get_db()
+    products = db.execute('''
+        SELECT * FROM products 
+        WHERE expiry_date IS NOT NULL 
+        AND expiry_date < date('now')
+        ORDER BY expiry_date ASC
+    ''').fetchall()
+    return jsonify([dict(product) for product in products])
+
+@app.route('/api/products/add-lot', methods=['POST'])
+def add_product_lot():
+    data = request.get_json()
+    if not data or 'product_id' not in data or 'quantity' not in data:
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+    db = get_db()
+    try:
+        # Get current product
+        product = db.execute('SELECT * FROM products WHERE id = ?', [data['product_id']]).fetchone()
+        if not product:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        # Update stock
+        new_stock = product['stock'] + data['quantity']
+        
+        # Update expiry date if provided and it's earlier than current expiry
+        update_expiry = ''
+        expiry_params = []
+        if data.get('expiry_date'):
+            if not product['expiry_date'] or data['expiry_date'] < product['expiry_date']:
+                update_expiry = ', expiry_date = ?'
+                expiry_params = [data['expiry_date']]
+
+        query = f'UPDATE products SET stock = ?{update_expiry} WHERE id = ?'
+        params = [new_stock] + expiry_params + [data['product_id']]
+        
+        db.execute(query, params)
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'new_stock': new_stock
+        })
+    except sqlite3.Error as e:
+        db.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

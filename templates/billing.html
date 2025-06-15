@@ -65,8 +65,6 @@
           </table>
         </div>
 
-        
-
         <div class="flex justify-between items-center mb-1">
           <h3 class="text-md font-semibold text-gray-700">Subtotal:</h3>
           <p class="text-md" id="subtotalAmount">₹0.00</p>
@@ -88,6 +86,7 @@
           </p>
         </div>
 
+        
         <!-- Action Buttons -->
         <div class="mt-6 space-y-3 no-print">
           <div class="flex items-center space-x-4">
@@ -200,25 +199,27 @@
     // Handle barcode input
     function handleBarcodeInput() {
       const code = barcodeInput.value.trim();
-      if (code.length >= 6) {
+      if (code.length >= 13) {  // Changed from 6 to 13 digits for standard barcodes
         fetchProductByBarcode(code)
           .then(product => {
             if (product) {
               if (product.stock <= 0) {
-                alert(`${product.name} is not in stock!`);
+                // Don't show alert, just don't add to cart
                 barcodeInput.value = '';
                 return;
               }
               addToCart(product);
               barcodeInput.value = '';
               setTimeout(() => barcodeInput.focus(), 100);
-            } else {
-              alert('Product not found');
             }
+            // Don't show alert if product not found - just ignore
           })
           .catch(error => {
             console.error('Scan error:', error);
-            alert('Error scanning product');
+            // Don't show alert to user
+          })
+          .finally(() => {
+            barcodeInput.value = '';
           });
       }
     }
@@ -299,7 +300,7 @@
       if (existingItem) {
         // Check if adding more than available stock
         if (existingItem.quantity >= product.stock) {
-          alert(`Cannot add more ${product.name}. Only ${product.stock} available in stock.`);
+          // Don't show alert, just don't add to cart
           return;
         }
         existingItem.quantity += 1;
@@ -422,6 +423,15 @@
 </script>
 
 <style>
+  .thank-you-container {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .thank-you-message {
+    margin-bottom: 0;
+  }
+
   @media print {
     body * { 
       visibility: hidden; 
@@ -430,39 +440,81 @@
       visibility: visible; 
     }
     .receipt-container { 
-      position: absolute; 
+      position: fixed; 
       left: 0; 
       top: 0; 
       width: 100%; 
-      padding: 0;
+      padding: 10px;
       margin: 0;
       box-shadow: none;
       border: none;
       background: white;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      height: auto !important;
+      page-break-after: avoid;
+      max-height: 100% !important;
     }
     .receipt-container h2 {
-      font-size: 1.5rem;
-      margin-bottom: 0.25rem;
+      font-size: 18px;
+      margin-bottom: 5px;
+      text-align: center;
     }
     .receipt-container p {
-      font-size: 0.875rem;
-      margin-bottom: 0.25rem;
+      font-size: 11px;
+      margin-bottom: 3px;
+      text-align: center;
     }
     table {
       width: 100%;
-      margin: 0.5rem 0;
+      margin: 5px 0;
       border-collapse: collapse;
+      font-size: 11px;
     }
     th, td {
-      padding: 0.25rem 0;
+      padding: 3px 0;
       border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      font-weight: bold;
     }
     .no-print, .remove-item { 
       display: none !important; 
     }
     @page { 
       size: auto; 
-      margin: 5mm 10mm;
+      margin: 0;
+    }
+    hr {
+      border: none;
+      border-top: 1px dashed #ccc;
+      margin: 5px 0;
+    }
+    #receiptDate {
+      margin-bottom: 10px;
+    }
+    #totalAmount {
+      font-size: 14px;
+    }
+    #printPaymentMode {
+      font-weight: bold;
+    }
+    .thank-you-message {
+      margin-top: 5px !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      font-weight: bold;
+      text-align: center;
+    }
+    .thank-you-container {
+      margin-top: 5px !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    html, body {
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
   }
 </style>

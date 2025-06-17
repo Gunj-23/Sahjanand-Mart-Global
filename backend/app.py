@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from db import init_db, get_db, close_db
 from datetime import datetime, timedelta, date
 import os
 import sqlite3
 import socket
 from flask import send_from_directory
+from werkzeug.security import generate_password_hash, check_password_hash
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__,
@@ -12,6 +14,7 @@ app = Flask(__name__,
             static_folder=os.path.join(basedir, '../backend/static'))
 
 app.config['DATABASE'] = os.path.join(basedir, '../database/sahjanand_mart.db')
+app.secret_key = 'your_secret_key_here'  # Change this to a secure secret key
 
 # Ensure directories exist
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
@@ -24,14 +27,80 @@ def teardown_db(exception):
 with app.app_context():
     init_db(app)
 
+# Login and Registration Routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        db = get_db()
+        user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        
+        if user and check_password_hash(user['password'], password):
+            session['username'] = user['username']
+            session['role'] = user['role']
+            flash('Logged in successfully!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form['username']
+    email = request.form.get('email')
+    password = request.form['password']
+    role = request.form['role']
+    
+    db = get_db()
+    try:
+        # Check if username already exists
+        existing_user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        if existing_user:
+            flash('Username already exists', 'error')
+            return redirect(url_for('login'))
+        
+        # Hash password
+        hashed_password = generate_password_hash(password)
+        
+        # Insert new user
+        db.execute('''
+            INSERT INTO users (username, email, password, role)
+            VALUES (?, ?, ?, ?)
+        ''', (username, email, hashed_password, role))
+        db.commit()
+        
+        flash('Registration successful! Please login.', 'success')
+        return redirect(url_for('login'))
+    except sqlite3.Error as e:
+        db.rollback()
+        flash('Registration failed: ' + str(e), 'error')
+        return redirect(url_for('login'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out', 'success')
+    return redirect(url_for('login'))
+
+# Existing routes (unchanged)
 @app.route('/')
 def dashboard():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     return render_template('dashboard.html')
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 @app.route('/inventory')
 def inventory():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
     db = get_db()
     products = db.execute('''
         SELECT *, 
@@ -63,17 +132,25 @@ def inventory():
 
 @app.route('/billing')
 def billing():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
     db = get_db()
     products = db.execute('SELECT * FROM products WHERE stock > 0').fetchall()
     return render_template('billing.html', products=products)
 
 @app.route('/bill-history')
 def bill_history():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     return render_template('bill_history.html')
 
 @app.route('/gst-reports')
 def gst_reports():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     return render_template('gst_reports.html')
+
 
 @app.route('/api/products', methods=['GET', 'POST'])
 def products():

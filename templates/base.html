@@ -48,6 +48,11 @@
             font-weight: bold;
             text-align: center;
         }
+        .user-info {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #bfdbfe;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -56,21 +61,37 @@
         <div class="w-64 bg-blue-800 text-white p-4 sidebar">
             <div class="logo-container">
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Sahjanand Mart Logo" class="logo-img">
-                
+                {% if 'username' in session %}
+                    <div class="brand-name">{{ session['username'] }}</div>
+                    <div class="user-info">{{ session['role']|capitalize }}</div>
+                {% endif %}
             </div>
             <nav>
                 <ul class="space-y-2">
-                    <li><a href="{{ url_for('dashboard') }}" class="block py-2 px-4 {% if request.path == '/' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Dashboard</a></li>
-                    <li><a href="{{ url_for('billing') }}" class="block py-2 px-4 {% if request.path == '/billing' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Billing</a></li>
-                    <li><a href="{{ url_for('inventory') }}" class="block py-2 px-4 {% if request.path == '/inventory' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Inventory</a></li>
-                    <li><a href="{{ url_for('bill_history') }}" class="block py-2 px-4 {% if request.path == '/bill-history' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Bill History</a></li>
-                    <li><a href="{{ url_for('gst_reports') }}" class="block py-2 px-4 {% if request.path == '/gst-reports' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">GST Report</a></li>
+                    {% if 'username' in session %}
+                        <li><a href="{{ url_for('dashboard') }}" class="block py-2 px-4 {% if request.path == '/' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Dashboard</a></li>
+                        <li><a href="{{ url_for('billing') }}" class="block py-2 px-4 {% if request.path == '/billing' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Billing</a></li>
+                        <li><a href="{{ url_for('inventory') }}" class="block py-2 px-4 {% if request.path == '/inventory' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Inventory</a></li>
+                        <li><a href="{{ url_for('bill_history') }}" class="block py-2 px-4 {% if request.path == '/bill-history' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Bill History</a></li>
+                        <li><a href="{{ url_for('gst_reports') }}" class="block py-2 px-4 {% if request.path == '/gst-reports' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">GST Report</a></li>
+                        <li><a href="{{ url_for('logout') }}" class="block py-2 px-4 hover:bg-blue-700 rounded">Logout</a></li>
+                    {% endif %}
                 </ul>
             </nav>
         </div>
 
         <!-- Main Content -->
         <div class="flex-1 p-8 overflow-auto">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-3 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
             {% block content %}{% endblock %}
             
             <!-- Jump to Top Button -->

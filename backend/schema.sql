@@ -24,6 +24,14 @@ CREATE TABLE IF NOT EXISTS sales (
     payment_mode TEXT NOT NULL DEFAULT 'cash'
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    email TEXT UNIQUE,
+    role TEXT NOT NULL DEFAULT 'employee',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 -- Create sale_items table
 -- Update sale_items table to include GST columns
 CREATE TABLE IF NOT EXISTS sale_items (

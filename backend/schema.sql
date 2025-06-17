@@ -58,22 +58,3 @@ INSERT OR IGNORE INTO products (name, price, stock, discount, barcode, category,
 ('Biscuits', 10.00, 200, 0, '8901234567896', 'Snacks', '2024-08-31', 0, 0),
 ('Chips', 20.00, 150, 0, '8901234567897', 'Snacks', '2024-07-31', 0, 0);
 
--- Sample sales data remains the same
-INSERT OR IGNORE INTO sales (subtotal, tax, total_amount, date, payment_mode) VALUES
-(150.00, 7.50, 157.50, '2023-11-15 10:30:00', 'cash'),
-(225.00, 11.25, 236.25, '2023-11-16 11:45:00', 'card'),
-(80.00, 4.00, 84.00, '2023-11-17 14:20:00', 'upi'),
-(320.00, 16.00, 336.00, '2023-11-18 16:10:00', 'cash');
-
--- Sample sale items remain the same
-INSERT OR IGNORE INTO sale_items (sale_id, product_id, quantity, price) VALUES
-(1, 1, 2, 45.00),
-(1, 3, 1, 42.00),
-(1, 5, 2, 25.00),
-(2, 2, 3, 30.00),
-(2, 4, 2, 75.00),
-(3, 6, 1, 180.00),
-(3, 7, 3, 10.00),
-(4, 8, 4, 20.00),
-(4, 1, 1, 45.00),
-(4, 3, 2, 42.00);

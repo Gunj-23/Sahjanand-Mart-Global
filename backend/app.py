@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, date
 import os
 import sqlite3
 import socket
-
+from flask import send_from_directory
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__,
@@ -27,7 +27,9 @@ with app.app_context():
 @app.route('/')
 def dashboard():
     return render_template('dashboard.html')
-
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 @app.route('/inventory')
 def inventory():
     db = get_db()

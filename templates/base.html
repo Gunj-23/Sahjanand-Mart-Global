@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sahjanand Mart - {% block title %}{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    
+    <!-- CSS and JS Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    
     {% block extra_head %}{% endblock %}
+    
     <style>
         html, body {
             height: 100%;
@@ -24,13 +31,33 @@
             display: none;
             z-index: 99;
         }
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+        }
+        .logo-img {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+        }
+        .brand-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
     <div class="flex h-full">
         <!-- Sidebar -->
         <div class="w-64 bg-blue-800 text-white p-4 sidebar">
-            <div class="text-2xl font-bold mb-8">Sahjanand Mart</div>
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Sahjanand Mart Logo" class="logo-img">
+                
+            </div>
             <nav>
                 <ul class="space-y-2">
                     <li><a href="{{ url_for('dashboard') }}" class="block py-2 px-4 {% if request.path == '/' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Dashboard</a></li>

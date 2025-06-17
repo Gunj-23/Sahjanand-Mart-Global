@@ -68,6 +68,10 @@ def billing():
 def bill_history():
     return render_template('bill_history.html')
 
+@app.route('/gst-reports')
+def gst_reports():
+    return render_template('gst_reports.html')
+
 @app.route('/api/products', methods=['GET', 'POST'])
 def products():
     db = get_db()
@@ -111,8 +115,8 @@ def products():
         try:
             cursor = db.cursor()
             cursor.execute('''
-                INSERT INTO products (name, price, stock, discount, barcode, category, expiry_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO products (name, price, stock, discount, barcode, category, expiry_date, cgst, sgst)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data['name'],
                 data['price'],
@@ -120,7 +124,9 @@ def products():
                 data.get('discount', 0),
                 data.get('barcode'),
                 data.get('category'),
-                data.get('expiry_date')
+                data.get('expiry_date'),
+                data.get('cgst', 0),
+                data.get('sgst', 0)
             ))
             db.commit()
             return jsonify({'success': True, 'id': cursor.lastrowid})
@@ -179,7 +185,7 @@ def create_sale():
     
     try:
         subtotal = sum(item['price'] * item['quantity'] for item in data['items'])
-        tax = subtotal * 0.05
+        tax = 0  # Tax is now included in MRP
         
         cursor.execute(
             'INSERT INTO sales (subtotal, tax, total_amount, date, payment_mode) VALUES (?, ?, ?, ?, ?)',
@@ -198,8 +204,8 @@ def create_sale():
                 return jsonify({'success': False, 'error': f'Not enough stock for {product["name"]}'}), 400
             
             cursor.execute(
-                'INSERT INTO sale_items (sale_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-                (sale_id, item['id'], item['quantity'], item['price'])
+                'INSERT INTO sale_items (sale_id, product_id, quantity, price, cgst, sgst) VALUES (?, ?, ?, ?, ?, ?)',
+                (sale_id, item['id'], item['quantity'], item['price'], product['cgst'], product['sgst'])
             )
             cursor.execute(
                 'UPDATE products SET stock = stock - ? WHERE id = ?',
@@ -357,7 +363,7 @@ def update_bill(bill_id):
 
         # Calculate new totals
         subtotal = sum(item['price'] * item['quantity'] for item in data['items'])
-        tax = subtotal * 0.05
+        tax = 0  # Tax is now included in MRP
         total = subtotal + tax
 
         # Update sale record
@@ -373,9 +379,9 @@ def update_bill(bill_id):
         # Insert new sale items and update stock
         for item in data['items']:
             db.execute('''
-                INSERT INTO sale_items (sale_id, product_id, quantity, price)
-                VALUES (?, ?, ?, ?)
-            ''', [bill_id, item['product_id'], item['quantity'], item['price']])
+                INSERT INTO sale_items (sale_id, product_id, quantity, price, cgst, sgst)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', [bill_id, item['product_id'], item['quantity'], item['price'], item.get('cgst', 0), item.get('sgst', 0)])
 
             # Calculate stock difference and update products
             original_qty = original_items_dict.get(item['product_id'], 0)
@@ -412,7 +418,7 @@ def product_operations(product_id):
         try:
             db.execute('''
                 UPDATE products 
-                SET name=?, price=?, stock=?, discount=?, barcode=?, category=?, expiry_date=?
+                SET name=?, price=?, stock=?, discount=?, barcode=?, category=?, expiry_date=?, cgst=?, sgst=?
                 WHERE id=?
             ''', (
                 data['name'], 
@@ -422,6 +428,8 @@ def product_operations(product_id):
                 data.get('barcode'), 
                 data.get('category'),
                 data.get('expiry_date'), 
+                data.get('cgst', 0),
+                data.get('sgst', 0),
                 product_id
             ))
             db.commit()
@@ -576,5 +584,149 @@ def add_product_lot():
         db.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/gst-reports', methods=['GET'])
+def get_gst_reports():
+    db = get_db()
+    period = request.args.get('period', 'today')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Define date ranges based on period
+    if period == 'today':
+        date_condition = "date(date) = date('now')"
+    elif period == 'week':
+        date_condition = "date(date) >= date('now', 'weekday 0', '-7 days')"
+    elif period == 'month':
+        date_condition = "strftime('%Y-%m', date) = strftime('%Y-%m', 'now')"
+    elif period == 'quarter':
+        date_condition = "strftime('%Y-%m', date) IN (strftime('%Y-%m', 'now'), strftime('%Y-%m', 'now', '-1 month'), strftime('%Y-%m', 'now', '-2 months'))"
+    elif period == 'year':
+        date_condition = "strftime('%Y', date) = strftime('%Y', 'now')"
+    elif period == 'custom' and start_date and end_date:
+        # Validate date format
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+            date_condition = f"date(date) BETWEEN date('{start_date}') AND date('{end_date}')"
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    else:
+        date_condition = "1=1"  # All time
+    
+    # Get inventory stats (not date dependent)
+    inventory_stats = db.execute('''
+        SELECT 
+            SUM(CASE WHEN cgst > 0 OR sgst > 0 THEN stock ELSE 0 END) as gst_products_count,
+            SUM(CASE WHEN cgst = 0 AND sgst = 0 THEN stock ELSE 0 END) as non_gst_products_count,
+            SUM(CASE WHEN cgst > 0 OR sgst > 0 THEN stock * price ELSE 0 END) as gst_products_value,
+            SUM(CASE WHEN cgst = 0 AND sgst = 0 THEN stock * price ELSE 0 END) as non_gst_products_value,
+            SUM(CASE WHEN cgst > 0 OR sgst > 0 THEN stock * price * (cgst + sgst) / 100 ELSE 0 END) as gst_tax_value,
+            SUM(CASE WHEN cgst > 0 OR sgst > 0 THEN stock * price * cgst / 100 ELSE 0 END) as cgst_value,
+            SUM(CASE WHEN cgst > 0 OR sgst > 0 THEN stock * price * sgst / 100 ELSE 0 END) as sgst_value
+        FROM products
+    ''').fetchone()
+    
+    # Get sales stats (date dependent)
+    sales_stats = db.execute(f'''
+        SELECT 
+            SUM(CASE WHEN p.cgst > 0 OR p.sgst > 0 THEN si.quantity ELSE 0 END) as gst_products_sold,
+            SUM(CASE WHEN p.cgst = 0 AND p.sgst = 0 THEN si.quantity ELSE 0 END) as non_gst_products_sold,
+            SUM(CASE WHEN p.cgst > 0 OR p.sgst > 0 THEN si.quantity * si.price ELSE 0 END) as gst_products_sales,
+            SUM(CASE WHEN p.cgst = 0 AND p.sgst = 0 THEN si.quantity * si.price ELSE 0 END) as non_gst_products_sales,
+            SUM(CASE WHEN p.cgst > 0 OR p.sgst > 0 THEN si.quantity * si.price * (p.cgst + p.sgst) / 100 ELSE 0 END) as gst_tax_collected,
+            SUM(CASE WHEN p.cgst > 0 OR p.sgst > 0 THEN si.quantity * si.price * p.cgst / 100 ELSE 0 END) as cgst_collected,
+            SUM(CASE WHEN p.cgst > 0 OR p.sgst > 0 THEN si.quantity * si.price * p.sgst / 100 ELSE 0 END) as sgst_collected
+        FROM sale_items si
+        JOIN products p ON si.product_id = p.id
+        JOIN sales s ON si.sale_id = s.id
+        WHERE {date_condition}
+    ''').fetchone()
+    
+    return jsonify({
+        'inventory': {
+            'gst_products_count': inventory_stats['gst_products_count'] or 0,
+            'non_gst_products_count': inventory_stats['non_gst_products_count'] or 0,
+            'gst_products_value': inventory_stats['gst_products_value'] or 0,
+            'non_gst_products_value': inventory_stats['non_gst_products_value'] or 0,
+            'gst_tax_value': inventory_stats['gst_tax_value'] or 0,
+            'cgst_value': inventory_stats['cgst_value'] or 0,
+            'sgst_value': inventory_stats['sgst_value'] or 0
+        },
+        'sales': {
+            'gst_products_sold': sales_stats['gst_products_sold'] or 0,
+            'non_gst_products_sold': sales_stats['non_gst_products_sold'] or 0,
+            'gst_products_sales': sales_stats['gst_products_sales'] or 0,
+            'non_gst_products_sales': sales_stats['non_gst_products_sales'] or 0,
+            'gst_tax_collected': sales_stats['gst_tax_collected'] or 0,
+            'cgst_collected': sales_stats['cgst_collected'] or 0,
+            'sgst_collected': sales_stats['sgst_collected'] or 0
+        },
+        'period': period,
+        'start_date': start_date if period == 'custom' else None,
+        'end_date': end_date if period == 'custom' else None
+    })
+
+@app.route('/api/gst-reports/detailed', methods=['GET'])
+def get_detailed_gst_report():
+    db = get_db()
+    period = request.args.get('period', 'today')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Define date ranges based on period
+    if period == 'today':
+        date_condition = "date(s.date) = date('now')"
+    elif period == 'week':
+        date_condition = "date(s.date) >= date('now', 'weekday 0', '-7 days')"
+    elif period == 'month':
+        date_condition = "strftime('%Y-%m', s.date) = strftime('%Y-%m', 'now')"
+    elif period == 'quarter':
+        date_condition = "strftime('%Y-%m', s.date) IN (strftime('%Y-%m', 'now'), strftime('%Y-%m', 'now', '-1 month'), strftime('%Y-%m', 'now', '-2 months'))"
+    elif period == 'year':
+        date_condition = "strftime('%Y', s.date) = strftime('%Y', 'now')"
+    elif period == 'custom' and start_date and end_date:
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+            date_condition = f"date(s.date) BETWEEN date('{start_date}') AND date('{end_date}')"
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    else:
+        date_condition = "1=1"  # All time
+    
+    # Get detailed GST report data
+    detailed_data = db.execute(f'''
+        SELECT 
+            p.name,
+            p.cgst,
+            p.sgst,
+            SUM(si.quantity) as quantity,
+            si.price
+        FROM sale_items si
+        JOIN products p ON si.product_id = p.id
+        JOIN sales s ON si.sale_id = s.id
+        WHERE {date_condition}
+        AND (p.cgst > 0 OR p.sgst > 0)
+        GROUP BY p.id, si.price
+        ORDER BY p.name
+    ''').fetchall()
+    
+    return jsonify([dict(row) for row in detailed_data])
+
+@app.route('/api/gst-reports/print', methods=['POST'])
+def print_gst_report():
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+    
+    try:
+        # Return success as we're handling printing client-side now
+        return jsonify({
+            'success': True,
+            'message': 'Printing handled client-side',
+            'data': data  # Return the data back for client-side use
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 if __name__ == '__main__':
     app.run(debug=True)

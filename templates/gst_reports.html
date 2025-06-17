@@ -1,0 +1,379 @@
+<!-- templates/gst_reports.html -->
+{% extends "base.html" %}
+
+{% block title %}GST Reports - Sahjanand Mart{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-3xl font-bold mb-6 text-gray-800">GST Reports</h1>
+
+  <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 no-print">
+      <div class="mb-4 md:mb-0">
+        <h2 class="text-xl font-semibold">GST Summary</h2>
+      </div>
+      <div class="flex space-x-2">
+        <select id="periodFilter" class="border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="quarter">This Quarter</option>
+          <option value="year">This Year</option>
+          <option value="custom">Custom Date Range</option>
+        </select>
+        <div id="customDateRange" class="hidden flex space-x-2">
+          <input type="date" id="startDate" class="border border-gray-300 rounded-md p-2">
+          <span class="flex items-center">to</span>
+          <input type="date" id="endDate" class="border border-gray-300 rounded-md p-2">
+        </div>
+        <button id="printReportBtn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+          Print Report
+        </button>
+        <button id="savePdfBtn" class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
+          Save as PDF
+        </button>
+        <button id="generateReportBtn" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors">
+          Generate Detailed Report
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <!-- Sales Summary -->
+      <div class="bg-gray-50 p-4 rounded-lg">
+        <h3 class="text-lg font-semibold mb-4 border-b pb-2">Sales Summary</h3>
+        <div class="space-y-4">
+          <div>
+            <h4 class="font-medium text-gray-700">With GST</h4>
+            <div class="pl-4 mt-2">
+              <p>Total Sales: ₹<span id="gstSalesTotal">0.00</span></p>
+              <p>Total GST Collected: ₹<span id="gstSalesTax">0.00</span></p>
+              <p class="pl-4">CGST: ₹<span id="cgstSalesTax">0.00</span></p>
+              <p class="pl-4">SGST: ₹<span id="sgstSalesTax">0.00</span></p>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-medium text-gray-700">Without GST</h4>
+            <div class="pl-4 mt-2">
+              <p>Total Sales: ₹<span id="nonGstSalesTotal">0.00</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory Summary -->
+      <div class="bg-gray-50 p-4 rounded-lg">
+        <h3 class="text-lg font-semibold mb-4 border-b pb-2">Current Inventory</h3>
+        <div class="space-y-4">
+          <div>
+            <h4 class="font-medium text-gray-700">With GST</h4>
+            <div class="pl-4 mt-2">
+              <p>Total Value: ₹<span id="gstInventoryTotal">0.00</span></p>
+              <p>Total GST Value: ₹<span id="gstInventoryTax">0.00</span></p>
+              <p class="pl-4">CGST: ₹<span id="cgstInventoryTax">0.00</span></p>
+              <p class="pl-4">SGST: ₹<span id="sgstInventoryTax">0.00</span></p>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-medium text-gray-700">Without GST</h4>
+            <div class="pl-4 mt-2">
+              <p>Total Value: ₹<span id="nonGstInventoryTotal">0.00</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Report Section -->
+    <div id="detailedReportSection" class="hidden">
+      <h3 class="text-lg font-semibold mb-4">Detailed GST Report</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-gray-300">
+              <th class="text-left py-2">Product</th>
+              <th class="text-right py-2">CGST %</th>
+              <th class="text-right py-2">SGST %</th>
+              <th class="text-right py-2">Quantity Sold</th>
+              <th class="text-right py-2">Total Sales</th>
+              <th class="text-right py-2">CGST Collected</th>
+              <th class="text-right py-2">SGST Collected</th>
+              <th class="text-right py-2">Total GST</th>
+            </tr>
+          </thead>
+          <tbody id="detailedReportBody">
+            <!-- Will be populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const periodFilter = document.getElementById('periodFilter');
+  const customDateRange = document.getElementById('customDateRange');
+  const startDate = document.getElementById('startDate');
+  const endDate = document.getElementById('endDate');
+  const printReportBtn = document.getElementById('printReportBtn');
+  const savePdfBtn = document.getElementById('savePdfBtn');
+  const generateReportBtn = document.getElementById('generateReportBtn');
+  const detailedReportSection = document.getElementById('detailedReportSection');
+
+  // Set default dates for custom range
+  const today = new Date().toISOString().split('T')[0];
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const oneMonthAgoStr = oneMonthAgo.toISOString().split('T')[0];
+  
+  startDate.value = oneMonthAgoStr;
+  endDate.value = today;
+
+  // Show/hide custom date range based on period selection
+  periodFilter.addEventListener('change', () => {
+    if (periodFilter.value === 'custom') {
+      customDateRange.classList.remove('hidden');
+    } else {
+      customDateRange.classList.add('hidden');
+    }
+    loadGstSummary();
+  });
+
+  // Load initial data
+  loadGstSummary();
+
+  // Event listeners for date changes
+  startDate.addEventListener('change', loadGstSummary);
+  endDate.addEventListener('change', loadGstSummary);
+
+  // Event listeners for buttons
+  printReportBtn.addEventListener('click', printReport);
+  savePdfBtn.addEventListener('click', saveAsPdf);
+  generateReportBtn.addEventListener('click', generateDetailedReport);
+
+  // Load GST summary data
+  function loadGstSummary() {
+    const period = periodFilter.value;
+    let url = `/api/gst-reports?period=${period}`;
+    
+    if (period === 'custom') {
+      url += `&start_date=${startDate.value}&end_date=${endDate.value}`;
+    }
+    
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        // Update sales data
+        document.getElementById('gstSalesTotal').textContent = data.sales.gst_products_sales.toFixed(2);
+        document.getElementById('gstSalesTax').textContent = data.sales.gst_tax_collected.toFixed(2);
+        document.getElementById('cgstSalesTax').textContent = data.sales.cgst_collected.toFixed(2);
+        document.getElementById('sgstSalesTax').textContent = data.sales.sgst_collected.toFixed(2);
+        document.getElementById('nonGstSalesTotal').textContent = data.sales.non_gst_products_sales.toFixed(2);
+        
+        // Update inventory data
+        document.getElementById('gstInventoryTotal').textContent = data.inventory.gst_products_value.toFixed(2);
+        document.getElementById('gstInventoryTax').textContent = data.inventory.gst_tax_value.toFixed(2);
+        document.getElementById('cgstInventoryTax').textContent = data.inventory.cgst_value.toFixed(2);
+        document.getElementById('sgstInventoryTax').textContent = data.inventory.sgst_value.toFixed(2);
+        document.getElementById('nonGstInventoryTotal').textContent = data.inventory.non_gst_products_value.toFixed(2);
+      })
+      .catch(error => {
+        console.error('Error loading GST summary:', error);
+        alert('Error loading GST summary data');
+      });
+  }
+
+  // Print report
+  function printReport() {
+    const opt = {
+      margin: 10,
+      filename: `GST_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Clone the content to avoid affecting the original
+    const element = document.querySelector('.container').cloneNode(true);
+    
+    // Remove all no-print elements
+    element.querySelectorAll('.no-print').forEach(el => el.remove());
+    
+    // Show detailed report if it's visible in the original
+    if (!detailedReportSection.classList.contains('hidden')) {
+      element.querySelector('#detailedReportSection').classList.remove('hidden');
+    }
+    
+    // Create a temporary div to hold the clone
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(element);
+    document.body.appendChild(tempDiv);
+
+    // Add report header with date range
+    const reportHeader = document.createElement('div');
+    reportHeader.className = 'mb-6 text-center';
+    
+    const period = periodFilter.value;
+    let dateRangeText = '';
+    if (period === 'custom') {
+      dateRangeText = `${startDate.value} to ${endDate.value}`;
+    } else {
+      dateRangeText = period.charAt(0).toUpperCase() + period.slice(1);
+    }
+    
+    reportHeader.innerHTML = `
+      <h2 class="text-2xl font-bold">Sahjanand Mart - GST Report</h2>
+      <p class="text-gray-600">${dateRangeText}</p>
+      <p class="text-gray-600">Generated on: ${new Date().toLocaleDateString()}</p>
+    `;
+    
+    element.insertBefore(reportHeader, element.firstChild);
+
+    // Print using html2pdf
+    html2pdf().from(tempDiv).set(opt).toPdf().get('pdf').then(function(pdf) {
+      window.open(pdf.output('bloburl'), '_blank');
+      document.body.removeChild(tempDiv);
+    });
+  }
+
+  // Save as PDF
+  function saveAsPdf() {
+    const opt = {
+      margin: 10,
+      filename: `GST_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Clone the content to avoid affecting the original
+    const element = document.querySelector('.container').cloneNode(true);
+    
+    // Remove all no-print elements
+    element.querySelectorAll('.no-print').forEach(el => el.remove());
+    
+    // Show detailed report if it's visible in the original
+    if (!detailedReportSection.classList.contains('hidden')) {
+      element.querySelector('#detailedReportSection').classList.remove('hidden');
+    }
+    
+    // Create a temporary div to hold the clone
+    const tempDiv = document.createElement('div');
+    tempDiv.appendChild(element);
+    document.body.appendChild(tempDiv);
+
+    // Add report header with date range
+    const reportHeader = document.createElement('div');
+    reportHeader.className = 'mb-6 text-center';
+    
+    const period = periodFilter.value;
+    let dateRangeText = '';
+    if (period === 'custom') {
+      dateRangeText = `${startDate.value} to ${endDate.value}`;
+    } else {
+      dateRangeText = period.charAt(0).toUpperCase() + period.slice(1);
+    }
+    
+    reportHeader.innerHTML = `
+      <h2 class="text-2xl font-bold">Sahjanand Mart - GST Report</h2>
+      <p class="text-gray-600">${dateRangeText}</p>
+      <p class="text-gray-600">Generated on: ${new Date().toLocaleDateString()}</p>
+    `;
+    
+    element.insertBefore(reportHeader, element.firstChild);
+
+    // Generate PDF
+    html2pdf().from(tempDiv).set(opt).save().then(function() {
+      document.body.removeChild(tempDiv);
+    });
+  }
+
+  // Generate detailed report
+  function generateDetailedReport() {
+    const period = periodFilter.value;
+    let url = `/api/gst-reports/detailed?period=${period}`;
+    
+    if (period === 'custom') {
+      url += `&start_date=${startDate.value}&end_date=${endDate.value}`;
+    }
+    
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const tableBody = document.getElementById('detailedReportBody');
+        tableBody.innerHTML = '';
+        
+        data.forEach(item => {
+          const row = document.createElement('tr');
+          row.className = 'border-b border-gray-200';
+          
+          const cgstAmount = (item.price * item.quantity * item.cgst / 100).toFixed(2);
+          const sgstAmount = (item.price * item.quantity * item.sgst / 100).toFixed(2);
+          const totalGst = (parseFloat(cgstAmount) + parseFloat(sgstAmount)).toFixed(2);
+          
+          row.innerHTML = `
+            <td class="py-2">${item.name}</td>
+            <td class="text-right py-2">${item.cgst}%</td>
+            <td class="text-right py-2">${item.sgst}%</td>
+            <td class="text-right py-2">${item.quantity}</td>
+            <td class="text-right py-2">₹${(item.price * item.quantity).toFixed(2)}</td>
+            <td class="text-right py-2">₹${cgstAmount}</td>
+            <td class="text-right py-2">₹${sgstAmount}</td>
+            <td class="text-right py-2">₹${totalGst}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+        
+        detailedReportSection.classList.remove('hidden');
+      })
+      .catch(error => {
+        console.error('Error generating detailed report:', error);
+        alert('Error generating detailed report');
+      });
+  }
+});
+</script>
+
+<style>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .container, .container * {
+    visibility: visible;
+  }
+  .container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    margin: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+  #detailedReportSection {
+    display: block !important;
+  }
+}
+
+.no-print {
+  display: block;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+</style>
+{% endblock %}

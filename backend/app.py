@@ -3,6 +3,7 @@ from db import init_db, get_db, close_db
 from datetime import datetime, timedelta, date
 import os
 import sqlite3
+import socket
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -728,5 +729,26 @@ def print_gst_report():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Get correct local IP address (Wi-Fi/Ethernet)
+    def get_local_ip():
+        try:
+            # Create a dummy socket to Google's DNS
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+            return local_ip
+        except Exception:
+            return "127.0.0.1"  # Fallback if no network
+    
+    local_ip = get_local_ip()
+    
+    print(f"\nLocal server will be available at:")
+    print(f"- This computer: http://localhost:5000")
+    print(f"- Other devices: http://{local_ip}:5000")
+    print("(Make sure both devices are on the same network)\n")
+    
+    # Run the app with host='0.0.0.0' to allow network access
+    app.run(host='0.0.0.0', port=5000, debug=True)

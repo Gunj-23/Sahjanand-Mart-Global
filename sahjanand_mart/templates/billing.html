@@ -1,0 +1,543 @@
+{% extends "base.html" %}
+{% block title %}Billing - SAHJANAND MART{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <h1 class="text-3xl font-bold mb-6 text-gray-800">Billing</h1>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Product Search & Scan -->
+    <div class="lg:col-span-1">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Add Products</h2>
+        <div class="mb-4 space-y-3">
+          <div class="flex space-x-2">
+            <button id="scanQRBtn" type="button"
+              class="flex-1 bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 transition-colors flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z"
+                  clip-rule="evenodd" />
+                <path d="M9 7a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zM7 9a1 1 0 100 2h1a1 1 0 100-2H7z" />
+              </svg>
+              Scan QR/Barcode
+            </button>
+          </div>
+          <div class="relative space-y-2">
+            <input autocomplete="off" type="text" id="barcodeInput"
+              placeholder="Scan barcode here..."
+              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent">
+            <input type="text" id="productSearch"
+              placeholder="Search products by name..."
+              class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <ul id="productList"
+              class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto hidden"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receipt Section -->
+    <div class="lg:col-span-2">
+      <div class="bg-white p-6 rounded-lg shadow-md receipt-container">
+        <div class="text-center mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">SAHJANAND MART</h2>
+          <p class="text-sm text-gray-600">Nr. Sahjanand Parlour, Bakrol - Vadtal Road,
+            Jol‑388315, Anand, Gujarat</p>
+          <p id="receiptDate" class="text-sm text-gray-600 mt-1"></p>
+          <p id="billId" class="text-sm font-medium text-gray-700 hidden">Bill ID: <span id="billIdValue"></span></p>
+        </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
+
+        <div class="mb-4 overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-300">
+                <th class="text-left py-2 font-medium text-gray-700">Item</th>
+                <th class="text-center py-2 font-medium text-gray-700">Qty</th>
+                <th class="text-right py-2 font-medium text-gray-700">Price</th>
+                <th class="text-right py-2 font-medium text-gray-700">Total</th>
+                <th class="w-8 no-print"></th>
+              </tr>
+            </thead>
+            
+            <tbody id="cartItems" class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
+
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="text-md font-semibold text-gray-700">Subtotal:</h3>
+          <p class="text-md" id="subtotalAmount">₹0.00</p>
+        </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
+
+        <div class="flex justify-between items-center border-t pt-2">
+          <h3 class="text-lg font-bold text-gray-800">Total Amount:</h3>
+          <p class="text-lg font-bold" id="totalAmount">₹0.00</p>
+        </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
+
+        <div class="mt-4 text-sm text-gray-600">
+          <p><span class="font-medium">Payment Mode:</span>
+            <span id="printPaymentMode">Cash</span>
+          </p>
+        </div>
+
+        <hr class="border-gray-300 my-2 print-section-divider">
+
+        
+        <!-- Action Buttons -->
+        <div class="mt-6 space-y-3 no-print">
+          <div class="flex items-center space-x-4">
+            <label for="paymentMode" class="font-medium text-gray-700">Payment Mode:</label>
+            <select id="paymentMode"
+              class="border border-gray-300 rounded-md p-2 flex-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="card">Credit/Debit Card</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button id="checkoutBtn"
+              class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center">
+              Complete Sale
+            </button>
+            <button id="printBillBtn"
+              class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors flex items-center justify-center">
+              Print Bill
+            </button>
+          </div>
+
+          <button id="clearCartBtn"
+            class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors">Clear
+            Cart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const barcodeInput = document.getElementById('barcodeInput');
+    const productSearch = document.getElementById('productSearch');
+    const productList = document.getElementById('productList');
+    const scanQRBtn = document.getElementById('scanQRBtn');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    const clearCartBtn = document.getElementById('clearCartBtn');
+    const printBillBtn = document.getElementById('printBillBtn');
+    const paymentMode = document.getElementById('paymentMode');
+    const receiptDate = document.getElementById('receiptDate');
+    const cartItems = document.getElementById('cartItems');
+    const printPaymentMode = document.getElementById('printPaymentMode');
+    const billIdElement = document.getElementById('billId');
+    const billIdValueElement = document.getElementById('billIdValue');
+
+    // Cart state
+    let cart = [];
+    let currentSaleId = null;
+
+    // Initialize
+    function init() {
+      // Set receipt date
+      const now = new Date();
+      const options = { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      };
+      receiptDate.textContent = `${now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, at ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`.replace('am', 'am').replace('pm', 'pm');
+
+      // Set focus to barcode input
+      barcodeInput.focus();
+
+      // Event listeners
+      setupEventListeners();
+      
+      // Render empty cart
+      renderCart();
+    }
+
+    // Setup all event listeners
+    function setupEventListeners() {
+      // Barcode scanning
+      barcodeInput.addEventListener('input', handleBarcodeInput);
+      
+      // Product search
+      productSearch.addEventListener('input', handleProductSearch);
+      productSearch.addEventListener('focus', () => productList.classList.remove('hidden'));
+      productSearch.addEventListener('blur', () => setTimeout(() => productList.classList.add('hidden'), 200));
+      
+      // Buttons
+      scanQRBtn.addEventListener('click', () => barcodeInput.focus());
+      clearCartBtn.addEventListener('click', clearCart);
+      checkoutBtn.addEventListener('click', handleCheckout);
+      printBillBtn.addEventListener('click', printBill);
+      
+      // Payment mode change
+      paymentMode.addEventListener('change', () => {
+        let displayText = paymentMode.options[paymentMode.selectedIndex].text;
+        if (displayText === 'UPI') displayText = 'UPI';
+        printPaymentMode.textContent = displayText;
+      });
+      
+      // Remove item handler (delegated)
+      cartItems.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-item')) {
+          const id = parseInt(e.target.getAttribute('data-id'));
+          removeItemFromCart(id);
+        }
+      });
+    }
+
+    // Handle barcode input
+    function handleBarcodeInput() {
+      const code = barcodeInput.value.trim();
+      if (code.length >= 13) {  // Changed from 6 to 13 digits for standard barcodes
+        fetchProductByBarcode(code)
+          .then(product => {
+            if (product) {
+              if (product.stock <= 0) {
+                // Don't show alert, just don't add to cart
+                barcodeInput.value = '';
+                return;
+              }
+              addToCart(product);
+              barcodeInput.value = '';
+              setTimeout(() => barcodeInput.focus(), 100);
+            }
+            // Don't show alert if product not found - just ignore
+          })
+          .catch(error => {
+            console.error('Scan error:', error);
+            // Don't show alert to user
+          })
+          .finally(() => {
+            barcodeInput.value = '';
+          });
+      }
+    }
+
+    // Handle product search
+    function handleProductSearch() {
+      const term = productSearch.value.trim();
+      if (!term) {
+        productList.classList.add('hidden');
+        return;
+      }
+      
+      fetchProductsByName(term)
+        .then(products => {
+          productList.innerHTML = '';
+          if (products.length === 0) {
+            productList.classList.add('hidden');
+            return;
+          }
+          
+          products.forEach(product => {
+            const li = document.createElement('li');
+            li.className = 'p-2 cursor-pointer hover:bg-gray-200';
+            li.textContent = product.stock > 0 
+              ? `${product.name} - ₹${product.price.toFixed(2)} (Stock: ${product.stock})`
+              : `${product.name} - Out of stock`;
+            li.style.color = product.stock > 0 ? 'inherit' : '#ef4444';
+            li.onclick = () => {
+              if (product.stock <= 0) {
+                alert(`${product.name} is not in stock!`);
+                return;
+              }
+              addToCart(product);
+              productSearch.value = '';
+              productList.classList.add('hidden');
+              barcodeInput.focus();
+            };
+            productList.appendChild(li);
+          });
+          
+          productList.classList.remove('hidden');
+        })
+        .catch(error => {
+          console.error('Search error:', error);
+          productList.classList.add('hidden');
+        });
+    }
+
+    // Fetch product by barcode
+    function fetchProductByBarcode(barcode) {
+      return fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode })
+      })
+      .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) return data.product;
+        throw new Error(data.error || 'Product not found');
+      });
+    }
+
+    // Fetch products by name
+    function fetchProductsByName(name) {
+      return fetch(`/api/products?search=${encodeURIComponent(name)}`)
+        .then(response => {
+          if (!response.ok) throw new Error('Network response was not ok');
+          return response.json();
+        });
+    }
+
+    // Add product to cart
+    function addToCart(product) {
+      const existingItem = cart.find(item => item.id === product.id);
+      if (existingItem) {
+        // Check if adding more than available stock
+        if (existingItem.quantity >= product.stock) {
+          // Don't show alert, just don't add to cart
+          return;
+        }
+        existingItem.quantity += 1;
+      } else {
+        cart.push({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          stock: product.stock
+        });
+      }
+      renderCart();
+    }
+
+    // Remove item from cart
+    function removeItemFromCart(productId) {
+      cart = cart.filter(item => item.id !== productId);
+      renderCart();
+    }
+
+    // Clear cart
+    function clearCart() {
+      cart = [];
+      currentSaleId = null;
+      billIdElement.classList.add('hidden');
+      renderCart();
+      barcodeInput.focus();
+    }
+
+    // Render cart
+    function renderCart() {
+      cartItems.innerHTML = '';
+      
+      let subtotal = 0;
+      
+      cart.forEach(item => {
+        const total = item.price * item.quantity;
+        subtotal += total;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2">${item.name}</td>
+          <td class="text-center py-2">${item.quantity}</td>
+          <td class="text-right py-2">₹${item.price.toFixed(2)}</td>
+          <td class="text-right py-2">₹${total.toFixed(2)}</td>
+          <td class="text-center py-2 no-print">
+            <span class="remove-item cursor-pointer font-bold text-red-500" data-id="${item.id}">&times;</span>
+          </td>`;
+        cartItems.appendChild(tr);
+      });
+      
+      // Removed tax calculation (5% tax removed)
+      const total = subtotal;
+      
+      document.getElementById('subtotalAmount').textContent = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('totalAmount').textContent = `₹${total.toFixed(2)}`;
+    }
+
+    // Handle checkout
+    function handleCheckout() {
+      if (cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+      }
+      
+      // Check stock availability before checkout
+      const outOfStockItems = cart.filter(item => item.quantity > item.stock);
+      if (outOfStockItems.length > 0) {
+        const itemNames = outOfStockItems.map(item => item.name).join(', ');
+        alert(`The following items don't have enough stock: ${itemNames}`);
+        return;
+      }
+      
+      const total = parseFloat(document.getElementById('totalAmount').textContent.replace('₹', ''));
+      const payload = {
+        items: cart.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: total,
+        payment_mode: paymentMode.value
+      };
+      
+      fetch('/api/sale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          currentSaleId = data.sale_id;
+          billIdValueElement.textContent = currentSaleId;
+          billIdElement.classList.remove('hidden');
+          alert(`Sale recorded successfully! Invoice ID: ${data.sale_id}`);
+          printBill(); // Automatically print after successful checkout
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      })
+      .catch(error => {
+        console.error('Checkout error:', error);
+        alert('Error during checkout: ' + error.message);
+      });
+    }
+
+    // Print bill
+    function printBill() {
+      if (cart.length === 0) {
+        alert('Cart is empty!');
+        return;
+      }
+      
+      // Show the bill ID element if we have one
+      if (currentSaleId) {
+        billIdElement.classList.remove('hidden');
+      }
+      
+      window.print();
+    }
+
+    // Initialize the app
+    init();
+  });
+</script>
+
+<style>
+  .thank-you-container {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .thank-you-message {
+    margin-bottom: 0;
+  }
+
+  @media print {
+    body * { 
+      visibility: hidden; 
+    }
+    .receipt-container, .receipt-container * { 
+      visibility: visible; 
+    }
+    .receipt-container { 
+      position: fixed; 
+      left: 0; 
+      top: 0; 
+      width: 100%; 
+      padding: 10px;
+      margin: 0;
+      box-shadow: none;
+      border: none;
+      background: white;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      height: auto !important;
+      page-break-after: avoid;
+      max-height: 100% !important;
+    }
+    .receipt-container h2 {
+      font-size: 18px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    .receipt-container p {
+      font-size: 11px;
+      margin-bottom: 3px;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      margin: 5px 0;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    th, td {
+      padding: 3px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      font-weight: bold;
+    }
+    .no-print, .remove-item { 
+      display: none !important; 
+    }
+    @page { 
+      size: auto; 
+      margin: 0;
+    }
+    .print-section-divider {
+      border: none;
+      border-top: 1px dashed #000;
+      margin: 8px 0;
+    }
+    #receiptDate {
+      margin-bottom: 10px;
+    }
+    #totalAmount {
+      font-size: 14px;
+    }
+    #printPaymentMode {
+      font-weight: bold;
+    }
+    .thank-you-message {
+      margin-top: 5px !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      font-weight: bold;
+      text-align: center;
+    }
+    .thank-you-container {
+      margin-top: 5px !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    html, body {
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    #billId {
+      display: block !important;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+  }
+</style>
+{% endblock %}

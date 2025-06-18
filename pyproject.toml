@@ -1,0 +1,120 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sahjanand-mart"
+version = "1.0.0"
+description = "A comprehensive Point of Sale (POS) system for retail management"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Sahjanand Mart Team", email = "contact@sahjanandmart.com"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial :: Point-Of-Sale",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "Flask>=2.3.2",
+    "Werkzeug>=2.3.0",
+    "Jinja2>=3.1.0",
+    "click>=8.0.0",
+    "itsdangerous>=2.1.0",
+    "MarkupSafe>=2.1.0",
+    "gunicorn>=21.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-flask>=1.2.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "coverage>=7.0.0",
+]
+windows = [
+    "pywin32>=305",
+]
+
+[project.scripts]
+sahjanand-mart = "sahjanand_mart.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sahjanandmart/sahjanand-mart"
+Documentation = "https://sahjanandmart.readthedocs.io/"
+Repository = "https://github.com/sahjanandmart/sahjanand-mart.git"
+"Bug Tracker" = "https://github.com/sahjanandmart/sahjanand-mart/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sahjanand_mart*"]
+
+[tool.setuptools.package-data]
+sahjanand_mart = ["static/**/*", "templates/**/*", "*.sql"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["sahjanand_mart"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sahjanand Mart - {% block title %}{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    
+    <!-- CSS and JS Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    
+    {% block extra_head %}{% endblock %}
+    
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        .sidebar {
+            min-height: 100vh;
+            height: 100%;
+        }
+        .jump-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            z-index: 99;
+        }
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+        }
+        .logo-img {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+        }
+        .brand-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .user-info {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #bfdbfe;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-full">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-800 text-white p-4 sidebar">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Sahjanand Mart Logo" class="logo-img">
+                {% if 'username' in session %}
+                    <div class="brand-name">{{ session['username'] }}</div>
+                    <div class="user-info">{{ session['role']|capitalize }}</div>
+                {% endif %}
+            </div>
+            <nav>
+                <ul class="space-y-2">
+                    {% if 'username' in session %}
+                        <li><a href="{{ url_for('dashboard') }}" class="block py-2 px-4 {% if request.path == '/' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Dashboard</a></li>
+                        <li><a href="{{ url_for('billing') }}" class="block py-2 px-4 {% if request.path == '/billing' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Billing</a></li>
+                        <li><a href="{{ url_for('inventory') }}" class="block py-2 px-4 {% if request.path == '/inventory' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Inventory</a></li>
+                        <li><a href="{{ url_for('bill_history') }}" class="block py-2 px-4 {% if request.path == '/bill-history' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">Bill History</a></li>
+                        <li><a href="{{ url_for('gst_reports') }}" class="block py-2 px-4 {% if request.path == '/gst-reports' %}bg-blue-700{% else %}hover:bg-blue-700{% endif %} rounded">GST Report</a></li>
+                        <li><a href="{{ url_for('logout') }}" class="block py-2 px-4 hover:bg-blue-700 rounded">Logout</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-3 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+            
+            <!-- Jump to Top Button -->
+            <button id="jumpToTop" class="jump-to-top bg-blue-800 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock %}
+    <script>
+        // Jump to top functionality
+        const jumpToTopButton = document.getElementById('jumpToTop');
+        
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                jumpToTopButton.style.display = 'block';
+            } else {
+                jumpToTopButton.style.display = 'none';
+            }
+        });
+        
+        jumpToTopButton.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Ensure sidebar is full height
+        function adjustSidebarHeight() {
+            const sidebar = document.querySelector('.sidebar');
+            const content = document.querySelector('.flex-1');
+            const bodyHeight = Math.max(
+                document.body.scrollHeight,
+                document.body.offsetHeight,
+                document.documentElement.clientHeight,
+                document.documentElement.scrollHeight,
+                document.documentElement.offsetHeight
+            );
+            sidebar.style.minHeight = bodyHeight + 'px';
+            content.style.minHeight = bodyHeight + 'px';
+        }
+
+        // Run on load and resize
+        window.addEventListener('load', adjustSidebarHeight);
+        window.addEventListener('resize', adjustSidebarHeight);
+    </script>
+</body>
+</html>

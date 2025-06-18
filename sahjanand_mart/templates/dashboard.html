@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">Dashboard</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-gray-500">Today's Sales</h3>
+        <p class="text-3xl font-bold">₹<span id="todaySales">0.00</span></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-gray-500">Total Products</h3>
+        <p class="text-3xl font-bold"><span id="totalProducts">0</span></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-gray-500">Low Stock Items</h3>
+        <p class="text-3xl font-bold"><span id="lowStockCount">0</span></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-gray-500">Expiring Soon</h3>
+        <p class="text-3xl font-bold"><span id="expiringSoonCount">0</span></p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Sales This Week</h3>
+        <canvas id="salesChart"></canvas>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Inventory by Category</h3>
+        <canvas id="inventoryChart"></canvas>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    <!-- Low Stock Products -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Low Stock Products (≤10)</h3>
+            <a href="/inventory" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="lowStockTable">
+                    <!-- Low stock products will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Expiring Soon Products -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Expiring Soon (≤30 days)</h3>
+            <a href="/inventory" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="expiringSoonTable">
+                    <!-- Expiring soon products will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Expired Products -->
+    <div class="bg-white p-6 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Expired Products</h3>
+            <a href="/inventory" class="text-blue-600 hover:text-blue-800 text-sm">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="expiredTable">
+                    <!-- Expired products will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow mt-6">
+    <h3 class="text-lg font-semibold mb-4">Payment Methods</h3>
+    <div class="h-64 w-64 mx-auto">
+        <canvas id="paymentChart"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    // Function to load low stock products
+    function loadLowStockProducts() {
+        fetch('/api/products/low-stock')
+            .then(response => response.json())
+            .then(products => {
+                const tableBody = document.getElementById('lowStockTable');
+                const countElement = document.getElementById('lowStockCount');
+                
+                // Update count
+                countElement.textContent = products.length;
+                if (products.length > 0) {
+                    countElement.classList.add('text-red-600');
+                }
+                
+                // Clear existing rows
+                tableBody.innerHTML = '';
+                
+                // Add new rows
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${product.name}</div>
+                            <div class="text-sm text-gray-500">${product.category || 'No category'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                ${product.stock}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
+    }
+
+    // Function to load expiring soon products
+    function loadExpiringSoonProducts() {
+        fetch('/api/products/expiring-soon')
+            .then(response => response.json())
+            .then(products => {
+                const tableBody = document.getElementById('expiringSoonTable');
+                const countElement = document.getElementById('expiringSoonCount');
+                
+                // Update count
+                countElement.textContent = products.length;
+                if (products.length > 0) {
+                    countElement.classList.add('text-yellow-600');
+                }
+                
+                // Clear existing rows
+                tableBody.innerHTML = '';
+                
+                // Add new rows
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${product.name}</div>
+                            <div class="text-sm text-gray-500">${product.category || 'No category'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                ${new Date(product.expiry_date).toLocaleDateString()}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
+    }
+
+    // Function to load expired products
+    function loadExpiredProducts() {
+        fetch('/api/products/expired')
+            .then(response => response.json())
+            .then(products => {
+                const tableBody = document.getElementById('expiredTable');
+                
+                // Clear existing rows
+                tableBody.innerHTML = '';
+                
+                // Add new rows
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${product.name}</div>
+                            <div class="text-sm text-gray-500">${product.category || 'No category'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                ${new Date(product.expiry_date).toLocaleDateString()}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
+    }
+
+    // Update the stats and load all product lists
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('todaySales').textContent = data.today_sales.toFixed(2);
+            document.getElementById('totalProducts').textContent = data.total_products;
+            
+            // Load all product lists
+            loadLowStockProducts();
+            loadExpiringSoonProducts();
+            loadExpiredProducts();
+        });
+
+    // Initialize payment chart
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/api/payment-data')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('paymentChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.values,
+                            backgroundColor: [
+                                'rgba(59, 130, 246, 0.7)',
+                                'rgba(16, 185, 129, 0.7)',
+                                'rgba(139, 92, 246, 0.7)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            });
+    });
+</script>
+{% endblock %}
